@@ -6,7 +6,9 @@ use std::{
     process::{exit, Command},
 };
 
-fn main() {
+use anyhow::Result;
+
+fn main() -> Result<()>{
     loop {
         let paths = env::var("PATH").unwrap_or_default();
         let paths = if let "windows" = env::consts::OS {
@@ -17,18 +19,30 @@ fn main() {
 
         // Uncomment this block to pass the first stage
         print!("$ ");
-        io::stdout().flush().unwrap();
+        io::stdout().flush()?;
 
         // Wait for user input
         let mut input = String::new();
-        io::stdin().read_line(&mut input).unwrap();
+        io::stdin().read_line(&mut input)?;
         let input = input.trim();
+        if input.is_empty() {
+            continue;
+        }
         let mut parts = input.split_ascii_whitespace();
         let command = parts.next().unwrap();
         let args: Vec<&str> = parts.collect();
         match command {
             "pwd" => {
-                println!("{}", env::current_dir().unwrap().display());
+                println!("{}", env::current_dir()?.display());
+            }
+            "cd" => {
+                if let Some(target) = args.first() {
+                    if fs::exists(target)? {
+                        env::set_current_dir(target)?;
+                    } else {
+                        println!("cd: {}: No such file or directory", target)
+                    }
+                }
             }
             "echo" => {
                 println!("{}", args.join(" "))
@@ -36,7 +50,7 @@ fn main() {
             "type" => {
                 let arg = args.first().unwrap();
                 match *arg {
-                    "echo" | "exit" | "type" | "pwd" => println!("{} is a shell builtin", arg),
+                    "echo" | "exit" | "type" | "pwd" | "cd" => println!("{} is a shell builtin", arg),
                     cmd => {
                         if let Some(path) = search(paths, cmd) {
                             println!("{} is {}", cmd, path);
