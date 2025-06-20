@@ -19,6 +19,13 @@ fn main() {
             "echo" => {
                 println!("{}", args.join(" "))
             }
+            "type" => {
+                let arg = args.first().unwrap();
+                match *arg {
+                    "echo" | "exit" => println!("{} is a shell builtin", arg),
+                    _ => println!("{}: not found", arg),
+                }
+            }
             "exit" => {
                 let code = args.first().map_or(0, |s| s.parse().unwrap());
                 exit(code)
