@@ -3,7 +3,7 @@ use std::io::{self, Write};
 use std::{
     env, fs,
     path::Path,
-    process::exit,
+    process::{exit, Command},
 };
 
 fn main() {
@@ -34,7 +34,7 @@ fn main() {
                 let arg = args.first().unwrap();
                 match *arg {
                     "echo" | "exit" | "type" => println!("{} is a shell builtin", arg),
-                    cmd  => {
+                    cmd => {
                         if let Some(path) = search(paths, cmd) {
                             println!("{} is {}", cmd, path);
                         } else {
@@ -47,8 +47,13 @@ fn main() {
                 let code = args.first().map_or(0, |s| s.parse().unwrap());
                 exit(code)
             }
-            input => {
-                println!("{}: command not found", input)
+            cmd => {
+                if let Some(path) = search(paths, cmd) {
+                    let mut child = Command::new(path).args(args).spawn().unwrap();
+                    let _ = child.wait();
+                } else {
+                    println!("{}: not found", cmd);
+                }
             }
         }
     }
