@@ -36,7 +36,7 @@ fn main() {
             "type" => {
                 let arg = args.first().unwrap();
                 match *arg {
-                    "echo" | "exit" | "type" => println!("{} is a shell builtin", arg),
+                    "echo" | "exit" | "type" | "pwd" => println!("{} is a shell builtin", arg),
                     cmd => {
                         if let Some(path) = search(paths, cmd) {
                             println!("{} is {}", cmd, path);
