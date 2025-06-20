@@ -29,49 +29,46 @@ fn main() -> Result<()> {
         if input.is_empty() {
             continue;
         }
-        let mut parts = input.split_ascii_whitespace();
-        let command = parts.next().unwrap();
-        let args: Vec<&str> = parts.collect();
-        match command {
+        let (cmd, args) = input.split_once(' ').unwrap_or((input, ""));
+        match cmd {
             "pwd" => {
                 println!("{}", env::current_dir()?.display());
             }
             "cd" => {
-                if let Some(target) = args.first() {
-                    if target == &"~" {
-                        env::set_current_dir(home)?;
-                    } else if fs::exists(target)? {
-                        env::set_current_dir(target)?;
-                    } else {
-                        println!("cd: {}: No such file or directory", target)
-                    }
+                let target = args;
+                if target == "~" {
+                    env::set_current_dir(home)?;
+                } else if fs::exists(target)? {
+                    env::set_current_dir(target)?;
+                } else {
+                    println!("cd: {}: No such file or directory", target)
                 }
             }
             "echo" => {
-                println!("{}", args.join(" "))
+                let args = args.trim_matches(['\'', '"']);
+                println!("{}", args)
             }
             "type" => {
-                let arg = args.first().unwrap();
-                match *arg {
+                match args {
                     "echo" | "exit" | "type" | "pwd" | "cd" => {
-                        println!("{} is a shell builtin", arg)
+                        println!("{} is a shell builtin", args)
                     }
                     cmd => {
                         if let Some(path) = search(paths, cmd) {
                             println!("{} is {}", cmd, path);
                         } else {
-                            println!("{}: not found", arg);
+                            println!("{}: not found", args);
                         }
                     }
                 }
             }
             "exit" => {
-                let code = args.first().map_or(0, |s| s.parse().unwrap());
+                let code = args.parse().unwrap_or_default();
                 exit(code)
             }
             cmd => {
                 if let Some(_path) = search(paths, cmd) {
-                    let mut child = Command::new(cmd).args(args).spawn().unwrap();
+                    let mut child = Command::new(cmd).arg(args).spawn()?;
                     let _ = child.wait();
                 } else {
                     println!("{}: not found", cmd);
