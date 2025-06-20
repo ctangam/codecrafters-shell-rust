@@ -28,7 +28,7 @@ fn main() {
         let args: Vec<&str> = parts.collect();
         match command {
             "pwd" => {
-                println!("{:?}", env::current_dir().unwrap());
+                println!("{}", env::current_dir().unwrap().display());
             }
             "echo" => {
                 println!("{}", args.join(" "))
