@@ -2,14 +2,18 @@
 use std::io::{self, Write};
 use std::{
     env, fs,
-    path::{Path, PathBuf},
+    path::Path,
     process::exit,
 };
 
 fn main() {
     loop {
         let paths = env::var("PATH").unwrap_or_default();
-        let paths = paths.split(':');
+        let paths = if let "windows" = env::consts::OS {
+            paths.split(';')
+        } else {
+            paths.split(':')
+        };
 
         // Uncomment this block to pass the first stage
         print!("$ ");
@@ -30,10 +34,13 @@ fn main() {
                 let arg = args.first().unwrap();
                 match *arg {
                     "echo" | "exit" | "type" => println!("{} is a shell builtin", arg),
-                    cmd if search(paths, cmd).is_some() => {
-                        println!("{} is an external command", cmd);
+                    cmd  => {
+                        if let Some(path) = search(paths, cmd) {
+                            println!("{} is {}", cmd, path);
+                        } else {
+                            println!("{}: not found", arg);
+                        }
                     }
-                    _ => println!("{}: not found", arg),
                 }
             }
             "exit" => {
@@ -47,17 +54,20 @@ fn main() {
     }
 }
 
-fn search<T>(paths: T, cmd: &str) -> Option<PathBuf>
+fn search<T>(paths: T, cmd: &str) -> Option<String>
 where
-    T: Iterator,
-    T::Item: AsRef<Path>,
+    T: IntoIterator,
+    T::Item: AsRef<Path> + std::fmt::Debug,
 {
     for path in paths {
-        for entry in fs::read_dir(path).unwrap() {
+        if !fs::exists(&path).unwrap() {
+            continue;
+        }
+        for entry in fs::read_dir(&path).unwrap() {
             let entry = entry.unwrap();
-            print!("{:?}", entry.file_name());
+            println!("{:?}", entry.file_name());
             if entry.file_name() == cmd {
-                return Some(entry.path());
+                return Some(entry.path().to_string_lossy().into_owned());
             }
         }
     }
