@@ -22,7 +22,7 @@ fn main() {
             "type" => {
                 let arg = args.first().unwrap();
                 match *arg {
-                    "echo" | "exit" => println!("{} is a shell builtin", arg),
+                    "echo" | "exit" | "type" => println!("{} is a shell builtin", arg),
                     _ => println!("{}: not found", arg),
                 }
             }
