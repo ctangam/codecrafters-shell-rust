@@ -8,7 +8,7 @@ use std::{
 
 use anyhow::Result;
 
-fn main() -> Result<()>{
+fn main() -> Result<()> {
     loop {
         let paths = env::var("PATH").unwrap_or_default();
         let paths = if let "windows" = env::consts::OS {
@@ -16,6 +16,7 @@ fn main() -> Result<()>{
         } else {
             paths.split(':')
         };
+        let home = env::var("HOME").unwrap_or("/".to_string());
 
         // Uncomment this block to pass the first stage
         print!("$ ");
@@ -37,7 +38,9 @@ fn main() -> Result<()>{
             }
             "cd" => {
                 if let Some(target) = args.first() {
-                    if fs::exists(target)? {
+                    if target == &"~" {
+                        env::set_current_dir(home)?;
+                    } else if fs::exists(target)? {
                         env::set_current_dir(target)?;
                     } else {
                         println!("cd: {}: No such file or directory", target)
@@ -50,7 +53,9 @@ fn main() -> Result<()>{
             "type" => {
                 let arg = args.first().unwrap();
                 match *arg {
-                    "echo" | "exit" | "type" | "pwd" | "cd" => println!("{} is a shell builtin", arg),
+                    "echo" | "exit" | "type" | "pwd" | "cd" => {
+                        println!("{} is a shell builtin", arg)
+                    }
                     cmd => {
                         if let Some(path) = search(paths, cmd) {
                             println!("{} is {}", cmd, path);
