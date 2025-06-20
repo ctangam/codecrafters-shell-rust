@@ -1,9 +1,16 @@
 #[allow(unused_imports)]
 use std::io::{self, Write};
-use std::process::exit;
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+    process::exit,
+};
 
 fn main() {
     loop {
+        let paths = env::var("PATH").unwrap_or_default();
+        let paths = paths.split(':');
+
         // Uncomment this block to pass the first stage
         print!("$ ");
         io::stdout().flush().unwrap();
@@ -23,6 +30,9 @@ fn main() {
                 let arg = args.first().unwrap();
                 match *arg {
                     "echo" | "exit" | "type" => println!("{} is a shell builtin", arg),
+                    cmd if search(paths, cmd).is_some() => {
+                        println!("{} is an external command", cmd);
+                    }
                     _ => println!("{}: not found", arg),
                 }
             }
@@ -35,4 +45,21 @@ fn main() {
             }
         }
     }
+}
+
+fn search<T>(paths: T, cmd: &str) -> Option<PathBuf>
+where
+    T: Iterator,
+    T::Item: AsRef<Path>,
+{
+    for path in paths {
+        for entry in fs::read_dir(path).unwrap() {
+            let entry = entry.unwrap();
+            print!("{:?}", entry.file_name());
+            if entry.file_name() == cmd {
+                return Some(entry.path());
+            }
+        }
+    }
+    None
 }
