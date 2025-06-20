@@ -48,8 +48,8 @@ fn main() {
                 exit(code)
             }
             cmd => {
-                if let Some(path) = search(paths, cmd) {
-                    let mut child = Command::new(path).args(args).spawn().unwrap();
+                if let Some(_path) = search(paths, cmd) {
+                    let mut child = Command::new(cmd).args(args).spawn().unwrap();
                     let _ = child.wait();
                 } else {
                     println!("{}: not found", cmd);
