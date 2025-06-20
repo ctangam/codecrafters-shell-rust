@@ -45,7 +45,12 @@ fn main() -> Result<()> {
                 }
             }
             "echo" => {
-                let args = args.trim_matches(['\'', '"']);
+                let args = if args.starts_with(['\'', '"']) {
+                    args.trim_matches(['\'', '"'])
+                } else {
+                    let args: Vec<&str> = args.split_ascii_whitespace().collect();
+                    &args.join(" ")
+                };
                 println!("{}", args)
             }
             "type" => {
