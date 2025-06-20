@@ -11,13 +11,14 @@ fn main() {
         // Wait for user input
         let mut input = String::new();
         io::stdin().read_line(&mut input).unwrap();
+        let input = input.trim();
 
-        match &input[..] {
+        match input {
             "exit 0" => {
                 exit(0)
             }
             input => {
-                println!("{}: command not found", input.trim())
+                println!("{}: command not found", input)
             }
         }
     }
