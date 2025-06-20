@@ -65,7 +65,6 @@ where
         }
         for entry in fs::read_dir(&path).unwrap() {
             let entry = entry.unwrap();
-            println!("{:?}", entry.file_name());
             if entry.file_name() == cmd {
                 return Some(entry.path().to_string_lossy().into_owned());
             }
