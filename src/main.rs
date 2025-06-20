@@ -12,10 +12,16 @@ fn main() {
         let mut input = String::new();
         io::stdin().read_line(&mut input).unwrap();
         let input = input.trim();
-
-        match input {
-            "exit 0" => {
-                exit(0)
+        let mut parts = input.split_ascii_whitespace();
+        let command = parts.next().unwrap();
+        let args: Vec<&str> = parts.collect();
+        match command {
+            "echo" => {
+                println!("{}", args.join(" "))
+            }
+            "exit" => {
+                let code = args.first().map_or(0, |s| s.parse().unwrap());
+                exit(code)
             }
             input => {
                 println!("{}: command not found", input)
