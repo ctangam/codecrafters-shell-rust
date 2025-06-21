@@ -45,28 +45,36 @@ fn main() -> Result<()> {
                 }
             }
             "echo" => {
-                let args = if args.starts_with(['\'', '"']) {
-                    args.trim_matches(['\'', '"'])
-                } else {
-                    let args: Vec<&str> = args.split_ascii_whitespace().collect();
-                    &args.join(" ")
-                };
+                let args = args
+                    .split('\'')
+                    .enumerate()
+                    .map(|(n, s)| {
+                        
+                        if n % 2 == 1 {
+                            s.to_string()
+                        } else {
+                            s.split_ascii_whitespace().collect::<Vec<&str>>().join(" ")
+                        }
+                    })
+                    .filter(|s| !s.is_empty())
+                    // .inspect(|s| println!("{}", s))
+                    .collect::<Vec<String>>()
+                    .join(" ");
+
                 println!("{}", args)
             }
-            "type" => {
-                match args {
-                    "echo" | "exit" | "type" | "pwd" | "cd" => {
-                        println!("{} is a shell builtin", args)
-                    }
-                    cmd => {
-                        if let Some(path) = search(paths, cmd) {
-                            println!("{} is {}", cmd, path);
-                        } else {
-                            println!("{}: not found", args);
-                        }
+            "type" => match args {
+                "echo" | "exit" | "type" | "pwd" | "cd" => {
+                    println!("{} is a shell builtin", args)
+                }
+                cmd => {
+                    if let Some(path) = search(paths, cmd) {
+                        println!("{} is {}", cmd, path);
+                    } else {
+                        println!("{}: not found", args);
                     }
                 }
-            }
+            },
             "exit" => {
                 let code = args.parse().unwrap_or_default();
                 exit(code)
