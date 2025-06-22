@@ -29,8 +29,11 @@ fn main() -> Result<()> {
         if input.is_empty() {
             continue;
         }
-        let (cmd, args) = input.split_once(' ').unwrap_or((input, ""));
-        match cmd {
+        let mut input = parse(input).into_iter().filter(|s| !s.trim().is_empty());
+        let cmd = input.next().unwrap_or_default();
+        let args = &input.collect::<String>()[..];
+        println!("Command: {}, Args: {}", cmd, args);
+        match &cmd[..] {
             "pwd" => {
                 println!("{}", env::current_dir()?.display());
             }
@@ -65,7 +68,7 @@ fn main() -> Result<()> {
                 exit(code)
             }
             cmd => {
-                if let Some(_path) = search(paths, cmd) {
+                if let Some(_path) = search(paths, &cmd) {
                     let args = parse(args)
                         .into_iter()
                         .filter(|s| !s.is_empty() && !s.trim().is_empty())
