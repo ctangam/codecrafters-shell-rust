@@ -45,27 +45,7 @@ fn main() -> Result<()> {
                 }
             }
             "echo" => {
-                let args = args
-                    .split('\'')
-                    .enumerate()
-                    .map(|(n, s)| {
-                        if n % 2 == 1 {
-                            s.to_string()
-                        } else {
-                            if !s.is_empty() && s.trim().is_empty() {
-                                " ".to_string()
-                            } else {
-                                let start = s.starts_with(' ');
-                                let end = s.ends_with(' ');
-                                let s = s.split_ascii_whitespace().collect::<Vec<&str>>().join(" ");
-                                let s = if start { format!(" {}", s) } else { s };
-                                let s = if end { format!("{} ", s) } else { s };
-                                s
-                            }
-                        }
-                    })
-                    .collect::<String>();
-
+                let args = parse_args(args).concat();
                 println!("{}", args)
             }
             "type" => match args {
@@ -86,7 +66,10 @@ fn main() -> Result<()> {
             }
             cmd => {
                 if let Some(_path) = search(paths, cmd) {
-                    let mut child = Command::new(cmd).arg(args).spawn()?;
+                    let args = parse_args(args).into_iter()
+                        .filter(|s| !s.is_empty() && !s.trim().is_empty())
+                        .collect::<Vec<String>>();
+                    let mut child = Command::new(cmd).args(args).spawn()?;
                     let _ = child.wait();
                 } else {
                     println!("{}: not found", cmd);
@@ -94,6 +77,28 @@ fn main() -> Result<()> {
             }
         }
     }
+}
+
+fn parse_args(args: &str) -> Vec<String> {
+    args
+        .split('\'')
+        .enumerate()
+        .map(|(n, s)| {
+            if n % 2 == 1 {
+                s.to_string()
+            } else {
+                if !s.is_empty() && s.trim().is_empty() {
+                    " ".to_string()
+                } else {
+                    let start = s.starts_with(' ');
+                    let end = s.ends_with(' ');
+                    let s = s.split_ascii_whitespace().collect::<Vec<&str>>().join(" ");
+                    let s = if start { format!(" {}", s) } else { s };
+                    let s = if end { format!("{} ", s) } else { s };
+                    s
+                }
+            }
+        }).collect::<Vec<String>>()
 }
 
 fn search<T>(paths: T, cmd: &str) -> Option<String>
