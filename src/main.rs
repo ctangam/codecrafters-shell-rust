@@ -29,46 +29,49 @@ fn main() -> Result<()> {
         if input.is_empty() {
             continue;
         }
-        let mut input = parse(input).into_iter().filter(|s| !s.trim().is_empty());
+        let mut input = parse(input).into_iter();
         let cmd = input.next().unwrap_or_default();
-        let args = &input.collect::<String>()[..];
+        let mut args = input;
         match &cmd[..] {
             "pwd" => {
                 println!("{}", env::current_dir()?.display());
             }
             "cd" => {
-                let target = args;
+                let target = args.next().unwrap_or_default();
                 if target == "~" {
                     env::set_current_dir(home)?;
-                } else if fs::exists(target)? {
+                } else if fs::exists(&target)? {
                     env::set_current_dir(target)?;
                 } else {
                     println!("cd: {}: No such file or directory", target)
                 }
             }
             "echo" => {
-                let args = parse(args).concat();
+                let args = args.collect::<String>();
                 println!("{}", args)
             }
-            "type" => match args {
-                "echo" | "exit" | "type" | "pwd" | "cd" => {
-                    println!("{} is a shell builtin", args)
-                }
-                cmd => {
-                    if let Some(path) = search(paths, cmd) {
-                        println!("{} is {}", cmd, path);
-                    } else {
-                        println!("{}: not found", args);
+            "type" => {
+                let cmd = args.next().unwrap_or_default();
+                match &cmd[..] {
+                    "echo" | "exit" | "type" | "pwd" | "cd" => {
+                        println!("{} is a shell builtin", cmd)
+                    }
+                    _ => {
+                        if let Some(path) = search(paths, &cmd) {
+                            println!("{} is {}", cmd, path);
+                        } else {
+                            println!("{}: not found", cmd);
+                        }
                     }
                 }
-            },
+            }
             "exit" => {
-                let code = args.parse().unwrap_or_default();
+                let code = args.next().unwrap_or_default().parse().unwrap_or_default();
                 exit(code)
             }
             cmd => {
                 if let Some(_path) = search(paths, &cmd) {
-                    let args = parse(args)
+                    let args = args
                         .into_iter()
                         .filter(|s| !s.is_empty() && !s.trim().is_empty())
                         .collect::<Vec<String>>();
@@ -107,7 +110,6 @@ fn parse(input: &str) -> Vec<String> {
                             s.push(input[i]);
                             i += 1; // Skip the closing quote
                         }
-                        
                     } else if input[i] == '\\' && (input[i + 1] == '"' || input[i + 1] == '\\') {
                         i += 1; // Skip the escape character
                         s.push(input[i]);
