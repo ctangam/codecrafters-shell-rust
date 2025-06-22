@@ -31,7 +31,7 @@ fn main() -> Result<()> {
         }
         let mut input = parse(input).into_iter();
         let cmd = input.next().unwrap_or_default();
-        let mut args = input;
+        let mut args = input.skip(1);
         match &cmd[..] {
             "pwd" => {
                 println!("{}", env::current_dir()?.display());
