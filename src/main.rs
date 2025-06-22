@@ -66,7 +66,8 @@ fn main() -> Result<()> {
             }
             cmd => {
                 if let Some(_path) = search(paths, cmd) {
-                    let args = parse_args(args).into_iter()
+                    let args = parse_args(args)
+                        .into_iter()
                         .filter(|s| !s.is_empty() && !s.trim().is_empty())
                         .collect::<Vec<String>>();
                     let mut child = Command::new(cmd).args(args).spawn()?;
@@ -80,27 +81,31 @@ fn main() -> Result<()> {
 }
 
 fn parse_args(args: &str) -> Vec<String> {
-    args
-        .split(['\'', '"'])
-        .enumerate()
-        .flat_map(|(n, s)| {
-            if n % 2 == 1 {
-                vec![s.to_string()]
+    if args.contains('"') {
+        args.split('"')
+    } else {
+        args.split('\'')
+    }
+    .enumerate()
+    .flat_map(|(n, s)| {
+        if n % 2 == 1 {
+            vec![s.to_string()]
+        } else {
+            if !s.is_empty() && s.trim().is_empty() {
+                vec![" ".to_string()]
             } else {
-                if !s.is_empty() && s.trim().is_empty() {
-                    vec![" ".to_string()]
-                } else {
-                    let start = s.starts_with(' ');
-                    let end = s.ends_with(' ');
-                    let s = s.split_ascii_whitespace().collect::<Vec<&str>>().join(" ");
-                    let s = if start { format!(" {}", s) } else { s };
-                    let s = if end { format!("{} ", s) } else { s };
-                    s.split_inclusive(' ')
-                        .map(|s| s.to_string())
-                        .collect::<Vec<String>>()
-                }
+                let start = s.starts_with(' ');
+                let end = s.ends_with(' ');
+                let s = s.split_ascii_whitespace().collect::<Vec<&str>>().join(" ");
+                let s = if start { format!(" {}", s) } else { s };
+                let s = if end { format!("{} ", s) } else { s };
+                s.split_inclusive(' ')
+                    .map(|s| s.to_string())
+                    .collect::<Vec<String>>()
             }
-        }).collect::<Vec<String>>()
+        }
+    })
+    .collect::<Vec<String>>()
 }
 
 fn search<T>(paths: T, cmd: &str) -> Option<String>
