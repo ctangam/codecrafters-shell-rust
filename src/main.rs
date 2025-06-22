@@ -81,7 +81,7 @@ fn main() -> Result<()> {
 
 fn parse_args(args: &str) -> Vec<String> {
     args
-        .split('\'')
+        .split(['\'', '"'])
         .enumerate()
         .flat_map(|(n, s)| {
             if n % 2 == 1 {
