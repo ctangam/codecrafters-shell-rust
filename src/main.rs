@@ -45,7 +45,7 @@ fn main() -> Result<()> {
                 }
             }
             "echo" => {
-                let args = parse_args(args).concat();
+                let args = parse(args).concat();
                 println!("{}", args)
             }
             "type" => match args {
@@ -66,7 +66,7 @@ fn main() -> Result<()> {
             }
             cmd => {
                 if let Some(_path) = search(paths, cmd) {
-                    let args = parse_args(args)
+                    let args = parse(args)
                         .into_iter()
                         .filter(|s| !s.is_empty() && !s.trim().is_empty())
                         .collect::<Vec<String>>();
@@ -78,6 +78,60 @@ fn main() -> Result<()> {
             }
         }
     }
+}
+
+fn parse(input: &str) -> Vec<String> {
+    let input = input.chars().collect::<Vec<char>>();
+    let mut args = Vec::new();
+    let mut i = 0;
+    loop {
+        if i >= input.len() {
+            break;
+        }
+        let mut s = String::new();
+        match input[i] {
+            '"' => {
+                i += 1;
+                while i < input.len() && input[i] != '"' {
+                    s.push(input[i]);
+                    i += 1;
+                }
+                i += 1; // Skip the closing quote
+            }
+            '\'' => {
+                i += 1;
+                while i < input.len() && input[i] != '\'' {
+                    s.push(input[i]);
+                    i += 1;
+                }
+                i += 1; // Skip the closing quote
+            }
+            ' ' => {
+                i += 1;
+                s.push(' ');
+                while i < input.len() && input[i].is_whitespace() {
+                    i += 1;
+                }
+            }
+            _ => {
+                while i < input.len() {
+                    if input[i].is_whitespace() {
+                        break;
+                    }
+                    if input[i] == '"' || input[i] == '\'' {
+                        break;
+                    }
+                    if input[i] == '\\' {
+                        i += 1; // Skip the escape character
+                    }
+                    s.push(input[i]);
+                    i += 1;
+                }
+            }
+        }
+        args.push(s);
+    }
+    args
 }
 
 fn parse_args(args: &str) -> Vec<String> {
@@ -96,7 +150,11 @@ fn parse_args(args: &str) -> Vec<String> {
             } else {
                 let start = s.starts_with(' ');
                 let end = s.ends_with(' ');
-                let s = s.split_ascii_whitespace().collect::<Vec<&str>>().join(" ").replace("\\", "");
+                let s = s
+                    .split_ascii_whitespace()
+                    .collect::<Vec<&str>>()
+                    .join(" ")
+                    .replace("\\", "");
                 let s = if start { format!(" {}", s) } else { s };
                 let s = if end { format!("{} ", s) } else { s };
                 s.split_inclusive(' ')
