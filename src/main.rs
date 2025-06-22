@@ -106,7 +106,7 @@ fn parse(input: &str) -> Vec<String> {
                             i += 1; // Skip the closing quote
                         }
                         
-                    } else if input[i] == '\\' {
+                    } else if input[i] == '\\' && (input[i + 1] == '"' || input[i + 1] == '\\') {
                         i += 1; // Skip the escape character
                         s.push(input[i]);
                         i += 1;
