@@ -69,7 +69,6 @@ fn main() -> Result<()> {
                     let args = parse_args(args).into_iter()
                         .filter(|s| !s.is_empty() && !s.trim().is_empty())
                         .collect::<Vec<String>>();
-                    println!("{:?}", args);
                     let mut child = Command::new(cmd).args(args).spawn()?;
                     let _ = child.wait();
                 } else {
