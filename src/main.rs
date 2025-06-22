@@ -69,6 +69,7 @@ fn main() -> Result<()> {
                     let args = parse_args(args).into_iter()
                         .filter(|s| !s.is_empty() && !s.trim().is_empty())
                         .collect::<Vec<String>>();
+                    println!("{:?}", args);
                     let mut child = Command::new(cmd).args(args).spawn()?;
                     let _ = child.wait();
                 } else {
@@ -83,19 +84,21 @@ fn parse_args(args: &str) -> Vec<String> {
     args
         .split('\'')
         .enumerate()
-        .map(|(n, s)| {
+        .flat_map(|(n, s)| {
             if n % 2 == 1 {
-                s.to_string()
+                vec![s.to_string()]
             } else {
                 if !s.is_empty() && s.trim().is_empty() {
-                    " ".to_string()
+                    vec![" ".to_string()]
                 } else {
                     let start = s.starts_with(' ');
                     let end = s.ends_with(' ');
                     let s = s.split_ascii_whitespace().collect::<Vec<&str>>().join(" ");
                     let s = if start { format!(" {}", s) } else { s };
                     let s = if end { format!("{} ", s) } else { s };
-                    s
+                    s.split_inclusive(' ')
+                        .map(|s| s.to_string())
+                        .collect::<Vec<String>>()
                 }
             }
         }).collect::<Vec<String>>()
