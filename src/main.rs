@@ -93,11 +93,22 @@ fn parse(input: &str) -> Vec<String> {
             '"' => {
                 i += 1;
                 while i < input.len() && input[i] != '"' {
-                    if input[i] == '\\' {
+                    if input[i] == '\'' {
+                        // Handle single quotes inside double quotes
+                        s.push(input[i]);
+                        i += 1;
+                        while i < input.len() && input[i] != '\'' {
+                            s.push(input[i]);
+                            i += 1;
+                        }
+                        s.push(input[i]);
+                        i += 1; // Skip the closing quote
+                    } else if input[i] == '\\' {
                         i += 1; // Skip the escape character
+                    } else {
+                        s.push(input[i]);
+                        i += 1;
                     }
-                    s.push(input[i]);
-                    i += 1;
                 }
                 i += 1; // Skip the closing quote
             }
