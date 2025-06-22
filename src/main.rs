@@ -32,7 +32,6 @@ fn main() -> Result<()> {
         let mut input = parse(input).into_iter().filter(|s| !s.trim().is_empty());
         let cmd = input.next().unwrap_or_default();
         let args = &input.collect::<String>()[..];
-        println!("Command: {}, Args: {}", cmd, args);
         match &cmd[..] {
             "pwd" => {
                 println!("{}", env::current_dir()?.display());
