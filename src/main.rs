@@ -96,7 +96,7 @@ fn parse_args(args: &str) -> Vec<String> {
             } else {
                 let start = s.starts_with(' ');
                 let end = s.ends_with(' ');
-                let s = s.split_ascii_whitespace().collect::<Vec<&str>>().join(" ");
+                let s = s.split_ascii_whitespace().collect::<Vec<&str>>().join(" ").replace("\\", "");
                 let s = if start { format!(" {}", s) } else { s };
                 let s = if end { format!("{} ", s) } else { s };
                 s.split_inclusive(' ')
