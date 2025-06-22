@@ -93,6 +93,9 @@ fn parse(input: &str) -> Vec<String> {
             '"' => {
                 i += 1;
                 while i < input.len() && input[i] != '"' {
+                    if input[i] == '\\' {
+                        i += 1; // Skip the escape character
+                    }
                     s.push(input[i]);
                     i += 1;
                 }
