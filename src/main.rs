@@ -49,17 +49,22 @@ fn main() -> Result<()> {
                     .split('\'')
                     .enumerate()
                     .map(|(n, s)| {
-                        
                         if n % 2 == 1 {
                             s.to_string()
                         } else {
-                            s.split_ascii_whitespace().collect::<Vec<&str>>().join(" ")
+                            if !s.is_empty() && s.trim().is_empty() {
+                                " ".to_string()
+                            } else {
+                                let start = s.starts_with(' ');
+                                let end = s.ends_with(' ');
+                                let s = s.split_ascii_whitespace().collect::<Vec<&str>>().join(" ");
+                                let s = if start { format!(" {}", s) } else { s };
+                                let s = if end { format!("{} ", s) } else { s };
+                                s
+                            }
                         }
                     })
-                    .filter(|s| !s.is_empty())
-                    // .inspect(|s| println!("{}", s))
-                    .collect::<Vec<String>>()
-                    .join(" ");
+                    .collect::<String>();
 
                 println!("{}", args)
             }
