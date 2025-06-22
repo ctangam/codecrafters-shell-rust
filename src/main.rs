@@ -97,7 +97,7 @@ fn parse(input: &str) -> Vec<String> {
                         // Handle single quotes inside double quotes
                         s.push(input[i]);
                         i += 1;
-                        while i < input.len() && input[i] != '\'' {
+                        while i < input.len() && input[i] != '\'' && input[i] != '"' {
                             s.push(input[i]);
                             i += 1;
                         }
@@ -105,6 +105,8 @@ fn parse(input: &str) -> Vec<String> {
                         i += 1; // Skip the closing quote
                     } else if input[i] == '\\' {
                         i += 1; // Skip the escape character
+                        s.push(input[i]);
+                        i += 1;
                     } else {
                         s.push(input[i]);
                         i += 1;
