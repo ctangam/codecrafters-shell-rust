@@ -81,13 +81,13 @@ fn main() -> Result<()> {
                 if let Some(_path) = search(paths, cmd) {
                     args.retain(|s| !s.is_empty() && !s.trim().is_empty());
                     let stdout = if let Some(stdout) = stdout {
-                        let fd = fs::File::open(stdout)?;
+                        let fd = fs::File::create(stdout)?;
                         Stdio::from(fd)
                     } else {
                         Stdio::inherit()
                     };
                     let stderr = if let Some(stderr) = stderr {
-                        let fd = fs::File::open(stderr)?;
+                        let fd = fs::File::create(stderr)?;
                         Stdio::from(fd)
                     } else {
                         Stdio::inherit()
