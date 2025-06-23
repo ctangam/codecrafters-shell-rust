@@ -55,7 +55,12 @@ fn main() -> Result<()> {
             }
             "echo" => {
                 let args = args.concat();
-                println!("{}", args)
+                if let Some(stdout) = stdout {
+                    let mut fd = fs::File::create(stdout)?;
+                    fd.write_all(args.as_bytes())?;
+                } else {
+                    println!("{}", args)
+                }
             }
             "type" => {
                 if let Some(cmd) = args.first() {
@@ -64,7 +69,7 @@ fn main() -> Result<()> {
                             println!("{} is a shell builtin", cmd)
                         }
                         _ => {
-                            if let Some(path) = search(paths, &cmd) {
+                            if let Some(path) = search(paths, cmd) {
                                 println!("{} is {}", cmd, path);
                             } else {
                                 println!("{}: not found", cmd);
