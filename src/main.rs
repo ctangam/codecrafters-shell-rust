@@ -24,7 +24,7 @@ enum Mode {
 fn main() -> Result<()> {
     loop {
         let paths = env::var("PATH").unwrap_or_default();
-        let paths = if let "windows" = env::consts::OS {
+        let mut paths = if let "windows" = env::consts::OS {
             paths.split(';')
         } else {
             paths.split(':')
@@ -42,76 +42,28 @@ fn main() -> Result<()> {
         if input.is_empty() {
             continue;
         }
-        let (cmd, mut args, stdout, stderr) = parse(input);
-        match &cmd[..] {
-            "pwd" => {
-                println!("{}", env::current_dir()?.display());
-            }
-            "cd" => {
-                if let Some(target) = args.first() {
-                    if target == "~" {
-                        env::set_current_dir(home)?;
-                    } else if fs::exists(&target)? {
-                        env::set_current_dir(target)?;
-                    } else {
-                        println!("cd: {}: No such file or directory", target)
-                    }
+        let mut commands = input.split(" | ").peekable();
+        let mut prev_stdout = None;
+        let mut children = Vec::new();
+        while let Some(input) = commands.next() {
+            let (cmd, mut args, stdout, stderr) = parse(input);
+            match &cmd[..] {
+                "pwd" => {
+                    println!("{}", env::current_dir()?.display());
                 }
-            }
-            "echo" => {
-                let arg = args.concat();
-                let stdout = match stdout {
-                    Some(Mode::Append(stdout)) => {
-                        let fd = OpenOptions::new().create(true).append(true).open(stdout)?;
-                        Stdio::from(fd)
-                    }
-                    Some(Mode::Create(stdout)) => {
-                        let fd = fs::File::create(stdout)?;
-                        Stdio::from(fd)
-                    }
-                    None => Stdio::inherit(),
-                };
-                let stderr = match stderr {
-                    Some(Mode::Append(stderr)) => {
-                        let fd = OpenOptions::new().create(true).append(true).open(stderr)?;
-                        Stdio::from(fd)
-                    }
-                    Some(Mode::Create(stderr)) => {
-                        let fd = fs::File::create(stderr)?;
-                        Stdio::from(fd)
-                    }
-                    None => Stdio::inherit(),
-                };
-                let mut child = Command::new(cmd)
-                    .arg(arg)
-                    .stdout(stdout)
-                    .stderr(stderr)
-                    .spawn()?;
-                let _ = child.wait();
-            }
-            "type" => {
-                if let Some(cmd) = args.first() {
-                    match &cmd[..] {
-                        "echo" | "exit" | "type" | "pwd" | "cd" => {
-                            println!("{} is a shell builtin", cmd)
-                        }
-                        _ => {
-                            if let Some(path) = search(paths, cmd) {
-                                println!("{} is {}", cmd, path);
-                            } else {
-                                println!("{}: not found", cmd);
-                            }
+                "cd" => {
+                    if let Some(target) = args.first() {
+                        if target == "~" {
+                            env::set_current_dir(&home)?;
+                        } else if fs::exists(target)? {
+                            env::set_current_dir(target)?;
+                        } else {
+                            println!("cd: {}: No such file or directory", target)
                         }
                     }
                 }
-            }
-            "exit" => {
-                let code = args.first().map_or(Ok(0), |s| s.parse())?;
-                exit(code)
-            }
-            cmd => {
-                if let Some(_path) = search(paths, cmd) {
-                    args.retain(|s| !s.is_empty() && !s.trim().is_empty());
+                "echo" => {
+                    let arg = args.concat();
                     let stdout = match stdout {
                         Some(Mode::Append(stdout)) => {
                             let fd = OpenOptions::new().create(true).append(true).open(stdout)?;
@@ -134,16 +86,86 @@ fn main() -> Result<()> {
                         }
                         None => Stdio::inherit(),
                     };
-                    let mut child = Command::new(cmd)
-                        .args(args)
+                    let child = Command::new(cmd)
+                        .arg(arg)
                         .stdout(stdout)
                         .stderr(stderr)
                         .spawn()?;
-                    let _ = child.wait();
-                } else {
-                    println!("{}: not found", cmd);
+                    children.push(child);
+                }
+                "type" => {
+                    if let Some(cmd) = args.first() {
+                        match &cmd[..] {
+                            "echo" | "exit" | "type" | "pwd" | "cd" => {
+                                println!("{} is a shell builtin", cmd)
+                            }
+                            _ => {
+                                if let Some(path) = search(&mut paths, cmd) {
+                                    println!("{} is {}", cmd, path);
+                                } else {
+                                    println!("{}: not found", cmd);
+                                }
+                            }
+                        }
+                    }
+                }
+                "exit" => {
+                    let code = args.first().map_or(Ok(0), |s| s.parse())?;
+                    exit(code)
+                }
+                cmd => {
+                    if let Some(_path) = search(&mut paths, cmd) {
+                        args.retain(|s| !s.is_empty() && !s.trim().is_empty());
+                        let stdin = match prev_stdout.take() {
+                            Some(output) => Stdio::from(output),
+                            None => Stdio::inherit(),
+                        };
+                        let stdout = if commands.peek().is_some() {
+                            Stdio::piped()
+                        } else {
+                            match stdout {
+                                Some(Mode::Append(stdout)) => {
+                                    let fd = OpenOptions::new()
+                                        .create(true)
+                                        .append(true)
+                                        .open(stdout)?;
+                                    Stdio::from(fd)
+                                }
+                                Some(Mode::Create(stdout)) => {
+                                    let fd = fs::File::create(stdout)?;
+                                    Stdio::from(fd)
+                                }
+                                None => Stdio::inherit(),
+                            }
+                        };
+                        let stderr = match stderr {
+                            Some(Mode::Append(stderr)) => {
+                                let fd =
+                                    OpenOptions::new().create(true).append(true).open(stderr)?;
+                                Stdio::from(fd)
+                            }
+                            Some(Mode::Create(stderr)) => {
+                                let fd = fs::File::create(stderr)?;
+                                Stdio::from(fd)
+                            }
+                            None => Stdio::inherit(),
+                        };
+                        let mut child = Command::new(cmd)
+                            .args(args)
+                            .stdin(stdin)
+                            .stdout(stdout)
+                            .stderr(stderr)
+                            .spawn()?;
+                        prev_stdout = child.stdout.take();
+                        children.push(child);
+                    } else {
+                        println!("{}: not found", cmd);
+                    }
                 }
             }
+        }
+        for mut child in children {
+            child.wait()?;
         }
     }
 }
