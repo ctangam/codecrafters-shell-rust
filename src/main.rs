@@ -64,20 +64,32 @@ fn main() -> Result<()> {
                 }
                 "echo" => {
                     let arg = args.concat();
-                    let stdout = match stdout {
-                        Some(Mode::Append(stdout)) => {
-                            let fd = OpenOptions::new().create(true).append(true).open(stdout)?;
-                            Stdio::from(fd)
-                        }
-                        Some(Mode::Create(stdout)) => {
-                            let fd = fs::File::create(stdout)?;
-                            Stdio::from(fd)
-                        }
+                    let stdin = match prev_stdout.take() {
+                        Some(output) => Stdio::from(output),
                         None => Stdio::inherit(),
+                    };
+                    let stdout = if commands.peek().is_some() {
+                        Stdio::piped()
+                    } else {
+                        match stdout {
+                            Some(Mode::Append(stdout)) => {
+                                let fd = OpenOptions::new()
+                                    .create(true)
+                                    .append(true)
+                                    .open(stdout)?;
+                                Stdio::from(fd)
+                            }
+                            Some(Mode::Create(stdout)) => {
+                                let fd = fs::File::create(stdout)?;
+                                Stdio::from(fd)
+                            }
+                            None => Stdio::inherit(),
+                        }
                     };
                     let stderr = match stderr {
                         Some(Mode::Append(stderr)) => {
-                            let fd = OpenOptions::new().create(true).append(true).open(stderr)?;
+                            let fd =
+                                OpenOptions::new().create(true).append(true).open(stderr)?;
                             Stdio::from(fd)
                         }
                         Some(Mode::Create(stderr)) => {
@@ -88,6 +100,7 @@ fn main() -> Result<()> {
                     };
                     let child = Command::new(cmd)
                         .arg(arg)
+                        .stdin(stdin)
                         .stdout(stdout)
                         .stderr(stderr)
                         .spawn()?;
