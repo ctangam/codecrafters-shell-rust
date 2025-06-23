@@ -38,7 +38,6 @@ fn main() -> Result<()> {
             continue;
         }
         let (cmd, mut args, stdout, stderr) = parse(input);
-
         match &cmd[..] {
             "pwd" => {
                 println!("{}", env::current_dir()?.display());
@@ -113,6 +112,7 @@ fn parse(input: &str) -> (String, Vec<String>, Option<String>, Option<String>) {
     let mut cmd = String::new();
     while i < input.len() && input[i] != ' ' {
         cmd.push(input[i]);
+        i += 1;
     }
     i += 1;
     let mut args = Vec::new();
@@ -127,7 +127,8 @@ fn parse(input: &str) -> (String, Vec<String>, Option<String>, Option<String>) {
             '>' => {
                 i += 2;
                 while i < input.len() {
-                    s.push(input[i])
+                    s.push(input[i]);
+                    i += 1;
                 }
                 stdout = Some(s);
                 break;
@@ -139,7 +140,8 @@ fn parse(input: &str) -> (String, Vec<String>, Option<String>, Option<String>) {
             '2' if input[i + 1] == '>' => {
                 i += 3;
                 while i < input.len() {
-                    s.push(input[i])
+                    s.push(input[i]);
+                    i += 1;
                 }
                 stderr = Some(s);
                 break;
