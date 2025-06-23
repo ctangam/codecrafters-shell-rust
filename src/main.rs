@@ -114,12 +114,6 @@ fn main() -> Result<()> {
 fn parse(input: &str) -> (String, Vec<String>, Option<String>, Option<String>) {
     let input = input.chars().collect::<Vec<char>>();
     let mut i = 0;
-    let mut cmd = String::new();
-    while i < input.len() && input[i] != ' ' {
-        cmd.push(input[i]);
-        i += 1;
-    }
-    i += 1;
     let mut args = Vec::new();
     let mut stdout = None;
     let mut stderr = None;
@@ -214,6 +208,10 @@ fn parse(input: &str) -> (String, Vec<String>, Option<String>, Option<String>) {
         args.push(s);
     }
 
+    let cmd = args.remove(0);
+    if !args.is_empty() {
+        args.remove(0);
+    }
     (cmd, args, stdout, stderr)
 }
 
