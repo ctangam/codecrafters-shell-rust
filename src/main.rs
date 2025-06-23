@@ -53,15 +53,27 @@ fn main() -> Result<()> {
                     }
                 }
             }
-            // "echo" => {
-            //     let args = args.concat();
-            //     if let Some(stdout) = stdout {
-            //         let mut fd = fs::File::create(stdout)?;
-            //         fd.write_all(args.as_bytes())?;
-            //     } else {
-            //         println!("{}", args)
-            //     }
-            // }
+            "echo" => {
+                let arg = args.concat();
+                let stdout = if let Some(stdout) = stdout {
+                    let fd = fs::File::create(stdout)?;
+                    Stdio::from(fd)
+                } else {
+                    Stdio::inherit()
+                };
+                let stderr = if let Some(stderr) = stderr {
+                    let fd = fs::File::create(stderr)?;
+                    Stdio::from(fd)
+                } else {
+                    Stdio::inherit()
+                };
+                let mut child = Command::new(cmd)
+                    .arg(arg)
+                    .stdout(stdout)
+                    .stderr(stderr)
+                    .spawn()?;
+                let _ = child.wait();
+            }
             "type" => {
                 if let Some(cmd) = args.first() {
                     match &cmd[..] {
