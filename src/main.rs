@@ -1,7 +1,8 @@
 #[allow(unused_imports)]
 use std::io::{self, Write};
 use std::{
-    env, fs,
+    env,
+    fs::{self, OpenOptions},
     path::Path,
     process::{exit, Command, Stdio},
 };
@@ -12,8 +13,12 @@ enum Symbol {
     Single(String),
     Double(String),
     Normal(String),
-    Stdout(String),
     Whitespace,
+}
+
+enum Mode {
+    Create(String),
+    Append(String),
 }
 
 fn main() -> Result<()> {
@@ -55,17 +60,27 @@ fn main() -> Result<()> {
             }
             "echo" => {
                 let arg = args.concat();
-                let stdout = if let Some(stdout) = stdout {
-                    let fd = fs::File::create(stdout)?;
-                    Stdio::from(fd)
-                } else {
-                    Stdio::inherit()
+                let stdout = match stdout {
+                    Some(Mode::Append(stdout)) => {
+                        let fd = OpenOptions::new().create(true).append(true).open(stdout)?;
+                        Stdio::from(fd)
+                    }
+                    Some(Mode::Create(stdout)) => {
+                        let fd = fs::File::create(stdout)?;
+                        Stdio::from(fd)
+                    }
+                    None => Stdio::inherit(),
                 };
-                let stderr = if let Some(stderr) = stderr {
-                    let fd = fs::File::create(stderr)?;
-                    Stdio::from(fd)
-                } else {
-                    Stdio::inherit()
+                let stderr = match stderr {
+                    Some(Mode::Append(stderr)) => {
+                        let fd = OpenOptions::new().create(true).append(true).open(stderr)?;
+                        Stdio::from(fd)
+                    }
+                    Some(Mode::Create(stderr)) => {
+                        let fd = fs::File::create(stderr)?;
+                        Stdio::from(fd)
+                    }
+                    None => Stdio::inherit(),
                 };
                 let mut child = Command::new(cmd)
                     .arg(arg)
@@ -97,17 +112,27 @@ fn main() -> Result<()> {
             cmd => {
                 if let Some(_path) = search(paths, cmd) {
                     args.retain(|s| !s.is_empty() && !s.trim().is_empty());
-                    let stdout = if let Some(stdout) = stdout {
-                        let fd = fs::File::create(stdout)?;
-                        Stdio::from(fd)
-                    } else {
-                        Stdio::inherit()
+                    let stdout = match stdout {
+                        Some(Mode::Append(stdout)) => {
+                            let fd = OpenOptions::new().create(true).append(true).open(stdout)?;
+                            Stdio::from(fd)
+                        }
+                        Some(Mode::Create(stdout)) => {
+                            let fd = fs::File::create(stdout)?;
+                            Stdio::from(fd)
+                        }
+                        None => Stdio::inherit(),
                     };
-                    let stderr = if let Some(stderr) = stderr {
-                        let fd = fs::File::create(stderr)?;
-                        Stdio::from(fd)
-                    } else {
-                        Stdio::inherit()
+                    let stderr = match stderr {
+                        Some(Mode::Append(stderr)) => {
+                            let fd = OpenOptions::new().create(true).append(true).open(stderr)?;
+                            Stdio::from(fd)
+                        }
+                        Some(Mode::Create(stderr)) => {
+                            let fd = fs::File::create(stderr)?;
+                            Stdio::from(fd)
+                        }
+                        None => Stdio::inherit(),
                     };
                     let mut child = Command::new(cmd)
                         .args(args)
@@ -123,7 +148,7 @@ fn main() -> Result<()> {
     }
 }
 
-fn parse(input: &str) -> (String, Vec<String>, Option<String>, Option<String>) {
+fn parse(input: &str) -> (String, Vec<String>, Option<Mode>, Option<Mode>) {
     let input = input.chars().collect::<Vec<char>>();
     let mut i = 0;
     let mut args = Vec::new();
@@ -136,12 +161,22 @@ fn parse(input: &str) -> (String, Vec<String>, Option<String>, Option<String>) {
         let mut s = String::new();
         match input[i] {
             '>' => {
-                i += 2;
-                while i < input.len() {
-                    s.push(input[i]);
-                    i += 1;
+                if input[i + 1] == '>' {
+                    i += 3;
+                    while i < input.len() {
+                        s.push(input[i]);
+                        i += 1;
+                    }
+                    stdout = Some(Mode::Append(s))
+                } else {
+                    i += 2;
+                    while i < input.len() {
+                        s.push(input[i]);
+                        i += 1;
+                    }
+                    stdout = Some(Mode::Create(s));
                 }
-                stdout = Some(s);
+
                 break;
             }
             '1' if input[i + 1] == '>' => {
@@ -149,12 +184,21 @@ fn parse(input: &str) -> (String, Vec<String>, Option<String>, Option<String>) {
                 continue;
             }
             '2' if input[i + 1] == '>' => {
-                i += 3;
-                while i < input.len() {
-                    s.push(input[i]);
-                    i += 1;
+                if input[i + 2] == '>' {
+                    i += 4;
+                    while i < input.len() {
+                        s.push(input[i]);
+                        i += 1;
+                    }
+                    stderr = Some(Mode::Append(s));
+                } else {
+                    i += 3;
+                    while i < input.len() {
+                        s.push(input[i]);
+                        i += 1;
+                    }
+                    stderr = Some(Mode::Create(s));
                 }
-                stderr = Some(s);
                 break;
             }
             '"' => {
