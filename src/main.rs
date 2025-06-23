@@ -193,11 +193,11 @@ fn parse(input: &str) -> (String, Vec<String>, Option<String>, Option<String>) {
             }
             ' ' => {
                 i += 1;
-                if input[i] == '>' || input[i+1] == '>' {
+                if input[i] == '>' || input.get(i + 1) == Some(&'>') {
                     continue;
                 }
-                 s.push(' ');
-                while i < input.len() && input[i].is_whitespace() {
+                s.push(' ');
+                while i < input.len() && input[i] == ' ' {
                     i += 1;
                 }
             }
