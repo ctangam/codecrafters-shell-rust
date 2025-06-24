@@ -2,6 +2,7 @@
 use std::io::{self, Write};
 use std::{
     env,
+    fmt::Display,
     fs::{self, read_to_string, OpenOptions},
     io::Read,
     path::PathBuf,
@@ -20,6 +21,20 @@ enum Symbol {
 enum Mode {
     Create(String),
     Append(String),
+}
+
+enum State {
+    Saved(String),
+    New(String),
+}
+
+impl Display for State {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::New(s) => write!(f, "{s}"),
+            Self::Saved(s) => write!(f, "{s}"),
+        }
+    }
 }
 
 fn main() -> Result<()> {
@@ -45,34 +60,38 @@ fn main() -> Result<()> {
         if input.is_empty() {
             continue;
         }
-        history.push(input.to_string());
+        history.push(State::New(input.to_string()));
         let mut commands = input.split(" | ").peekable();
         let mut prev_stdout = None;
         let mut children = Vec::new();
         while let Some(input) = commands.next() {
             let (cmd, mut args, stdout, stderr) = parse(input);
             match &cmd[..] {
-                "history" => {
-                    if args.first() == Some(&"-r".to_string()) {
+                "history" => match args.first() {
+                    Some(val) if val == "-r" => {
                         if let Some(path) = args.last() {
                             load_history(path, &mut history)?;
-                            // history_path = Some(path.clone());
                         }
-                        continue;
-                    } else if args.first() == Some(&"-w".to_string()) {
+                    }
+                    Some(val) if val == "-w" => {
                         if let Some(path) = args.last() {
                             save_history(path, &history)?;
-                            // history_path = Some(path.clone());
                         }
-                        continue;
                     }
-                    let n = args.first().map_or(Ok(history.len()), |s| s.parse())?;
-                    history
-                        .iter()
-                        .enumerate()
-                        .skip(history.len() - n)
-                        .for_each(|(i, s)| println!("    {}  {}", i + 1, s));
-                }
+                    Some(val) if val == "-a" => {
+                        if let Some(path) = args.last() {
+                            append_history(path, &mut history)?;
+                        }
+                    }
+                    val => {
+                        let n = val.map_or(Ok(history.len()), |s| s.parse())?;
+                        history
+                            .iter()
+                            .enumerate()
+                            .skip(history.len() - n)
+                            .for_each(|(i, s)| println!("    {}  {}", i + 1, s));
+                    }
+                },
                 "pwd" => {
                     println!("{}", env::current_dir()?.display());
                 }
@@ -209,17 +228,38 @@ fn main() -> Result<()> {
     }
 }
 
-fn load_history(path: &str, history: &mut Vec<String>) -> Result<()> {
+fn load_history(path: &str, history: &mut Vec<State>) -> Result<()> {
     for line in read_to_string(path)?.lines() {
-        history.push(line.to_string())
+        history.push(State::Saved(line.to_string()))
     }
     Ok(())
 }
 
-fn save_history(path: &str, history: &Vec<String>) -> Result<()> {
+fn save_history(path: &str, history: &Vec<State>) -> Result<()> {
     let mut fd = fs::File::create(path)?;
     for line in history {
-        writeln!(&mut fd, "{}", line)?;
+        match line {
+            State::Saved(s) => writeln!(&mut fd, "{}", s)?,
+            State::New(s) => writeln!(&mut fd, "{}", s)?,
+        }
+    }
+    Ok(())
+}
+
+fn append_history(path: &str, history: &mut Vec<State>) -> Result<()> {
+    let mut fd = OpenOptions::new()
+        .read(true)
+        .create(true)
+        .append(true)
+        .open(path)?;
+    for line in history {
+        match line {
+            State::Saved(_) => continue,
+            State::New(s) => {
+                writeln!(&mut fd, "{}", s)?;
+                *line = State::Saved(s.to_string())
+            }
+        }
     }
     Ok(())
 }
