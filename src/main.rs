@@ -24,7 +24,6 @@ enum Mode {
 fn main() -> Result<()> {
     loop {
         let paths = env::var("PATH").unwrap_or_default();
-        eprintln!("{paths}");
         let mut paths = if let "windows" = env::consts::OS {
             paths.split(';')
         } else {
@@ -319,7 +318,9 @@ where
             continue;
         }
         for entry in fs::read_dir(&path)? {
-            eprintln!("{entry:?}, {path:?}, {cmd}");
+            if cmd == "grep" {
+                eprintln!("{entry:?}, {path:?}, {cmd}");
+            }
             let entry = entry?;
             if entry.file_name() == cmd {
                 return Ok(Some(entry.path()));
