@@ -54,8 +54,8 @@ fn main() -> Result<()> {
                     let n = args.first().map_or(Ok(history.len()), |s| s.parse())?;
                     history
                         .iter()
-                        .take(n)
                         .enumerate()
+                        .skip(history.len() - n)
                         .for_each(|(i, s)| print!("    {}  {}", i + 1, s));
                 }
                 "pwd" => {
