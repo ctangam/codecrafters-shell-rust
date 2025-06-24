@@ -2,7 +2,8 @@
 use std::io::{self, Write};
 use std::{
     env,
-    fs::{self, OpenOptions},
+    fs::{self, read_to_string, OpenOptions},
+    io::Read,
     path::PathBuf,
     process::{exit, Command, Stdio},
 };
@@ -31,6 +32,7 @@ fn main() -> Result<()> {
 
     let home = env::var("HOME").unwrap_or("/".to_string());
     let mut history = Vec::new();
+    let mut history_path = None;
     loop {
         // Uncomment this block to pass the first stage
         print!("$ ");
@@ -39,11 +41,11 @@ fn main() -> Result<()> {
         // Wait for user input
         let mut input = String::new();
         io::stdin().read_line(&mut input)?;
-        history.push(input.clone());
         let input = input.trim();
         if input.is_empty() {
             continue;
         }
+        history.push(input.to_string());
         let mut commands = input.split(" | ").peekable();
         let mut prev_stdout = None;
         let mut children = Vec::new();
@@ -51,12 +53,20 @@ fn main() -> Result<()> {
             let (cmd, mut args, stdout, stderr) = parse(input);
             match &cmd[..] {
                 "history" => {
+                    if args.first() == Some(&"-r".to_string()) {
+                        if let Some(path) = args.last() {
+                            load_history(path, &mut history)?;
+                            history_path = Some(path.clone());
+                        }
+
+                        continue;
+                    }
                     let n = args.first().map_or(Ok(history.len()), |s| s.parse())?;
                     history
                         .iter()
                         .enumerate()
                         .skip(history.len() - n)
-                        .for_each(|(i, s)| print!("    {}  {}", i + 1, s));
+                        .for_each(|(i, s)| println!("    {}  {}", i + 1, s));
                 }
                 "pwd" => {
                     println!("{}", env::current_dir()?.display());
@@ -131,6 +141,9 @@ fn main() -> Result<()> {
                     }
                 }
                 "exit" => {
+                    if let Some(path) = &history_path {
+                        save_history(path, &history)?;
+                    }
                     let code = args.first().map_or(Ok(0), |s| s.parse())?;
                     exit(code)
                 }
@@ -189,6 +202,21 @@ fn main() -> Result<()> {
             child.wait()?;
         }
     }
+}
+
+fn load_history(path: &str, history: &mut Vec<String>) -> Result<()> {
+    for line in read_to_string(path)?.lines() {
+        history.push(line.to_string())
+    }
+    Ok(())
+}
+
+fn save_history(path: &str, history: &Vec<String>) -> Result<()> {
+    let mut fd = fs::File::create(path)?;
+    for line in history {
+        writeln!(&mut fd, "{}", line)?;
+    }
+    Ok(())
 }
 
 fn parse(input: &str) -> (String, Vec<String>, Option<Mode>, Option<Mode>) {
