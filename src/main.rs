@@ -24,10 +24,10 @@ enum Mode {
 fn main() -> Result<()> {
     loop {
         let paths = env::var("PATH").unwrap_or_default();
-        let mut paths = if let "windows" = env::consts::OS {
-            paths.split(';')
+        let paths: Vec<&str> = if let "windows" = env::consts::OS {
+            paths.split(';').collect()
         } else {
-            paths.split(':')
+            paths.split(':').collect()
         };
         
         let home = env::var("HOME").unwrap_or("/".to_string());
@@ -115,7 +115,7 @@ fn main() -> Result<()> {
                                 println!("{} is a shell builtin", cmd)
                             }
                             _ => {
-                                if let Ok(Some(path)) = search(&mut paths, cmd) {
+                                if let Ok(Some(path)) = search(&paths[..], cmd) {
                                     println!("{} is {}", cmd, path.display());
                                 } else {
                                     println!("{}: not found", cmd);
@@ -129,7 +129,7 @@ fn main() -> Result<()> {
                     exit(code)
                 }
                 cmd => {
-                    if let Ok(Some(_path)) = search(&mut paths, cmd) {
+                    if let Ok(Some(_path)) = search(&paths[..], cmd) {
                         args.retain(|s| !s.is_empty() && !s.trim().is_empty());
                         let stdin = match prev_stdout.take() {
                             Some(output) => Stdio::from(output),
@@ -308,19 +308,13 @@ fn parse(input: &str) -> (String, Vec<String>, Option<Mode>, Option<Mode>) {
     (cmd, args, stdout, stderr)
 }
 
-fn search<T>(paths: T, cmd: &str) -> Result<Option<PathBuf>>
-where
-    T: IntoIterator,
-    T::Item: AsRef<Path> + std::fmt::Debug,
+fn search(paths: &[&str], cmd: &str) -> Result<Option<PathBuf>>
 {
     for path in paths {
-        if !fs::exists(&path).unwrap() {
+        if !fs::exists(path).unwrap() {
             continue;
         }
-        for entry in fs::read_dir(&path)? {
-            if cmd == "grep" {
-                eprintln!("{entry:?}, {path:?}, {cmd}");
-            }
+        for entry in fs::read_dir(path)? {
             let entry = entry?;
             if entry.file_name() == cmd {
                 return Ok(Some(entry.path()));
