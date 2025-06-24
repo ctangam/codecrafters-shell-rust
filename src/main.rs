@@ -3,7 +3,7 @@ use std::io::{self, Write};
 use std::{
     env,
     fs::{self, OpenOptions},
-    path::{Path, PathBuf},
+    path::PathBuf,
     process::{exit, Command, Stdio},
 };
 
@@ -22,16 +22,16 @@ enum Mode {
 }
 
 fn main() -> Result<()> {
-    loop {
-        let paths = env::var("PATH").unwrap_or_default();
-        let paths: Vec<&str> = if let "windows" = env::consts::OS {
-            paths.split(';').collect()
-        } else {
-            paths.split(':').collect()
-        };
-        
-        let home = env::var("HOME").unwrap_or("/".to_string());
+    let paths = env::var("PATH").unwrap_or_default();
+    let paths: Vec<&str> = if let "windows" = env::consts::OS {
+        paths.split(';').collect()
+    } else {
+        paths.split(':').collect()
+    };
 
+    let home = env::var("HOME").unwrap_or("/".to_string());
+    let mut history = Vec::new();
+    loop {
         // Uncomment this block to pass the first stage
         print!("$ ");
         io::stdout().flush()?;
@@ -39,6 +39,7 @@ fn main() -> Result<()> {
         // Wait for user input
         let mut input = String::new();
         io::stdin().read_line(&mut input)?;
+        history.push(input.clone());
         let input = input.trim();
         if input.is_empty() {
             continue;
@@ -49,6 +50,12 @@ fn main() -> Result<()> {
         while let Some(input) = commands.next() {
             let (cmd, mut args, stdout, stderr) = parse(input);
             match &cmd[..] {
+                "history" => {
+                    history
+                        .iter()
+                        .enumerate()
+                        .for_each(|(i, s)| print!("    {}  {}", i + 1, s));
+                }
                 "pwd" => {
                     println!("{}", env::current_dir()?.display());
                 }
@@ -74,10 +81,8 @@ fn main() -> Result<()> {
                     } else {
                         match stdout {
                             Some(Mode::Append(stdout)) => {
-                                let fd = OpenOptions::new()
-                                    .create(true)
-                                    .append(true)
-                                    .open(stdout)?;
+                                let fd =
+                                    OpenOptions::new().create(true).append(true).open(stdout)?;
                                 Stdio::from(fd)
                             }
                             Some(Mode::Create(stdout)) => {
@@ -89,8 +94,7 @@ fn main() -> Result<()> {
                     };
                     let stderr = match stderr {
                         Some(Mode::Append(stderr)) => {
-                            let fd =
-                                OpenOptions::new().create(true).append(true).open(stderr)?;
+                            let fd = OpenOptions::new().create(true).append(true).open(stderr)?;
                             Stdio::from(fd)
                         }
                         Some(Mode::Create(stderr)) => {
@@ -111,7 +115,7 @@ fn main() -> Result<()> {
                 "type" => {
                     if let Some(cmd) = args.first() {
                         match &cmd[..] {
-                            "echo" | "exit" | "type" | "pwd" | "cd" => {
+                            "echo" | "exit" | "type" | "pwd" | "cd" | "history" => {
                                 println!("{} is a shell builtin", cmd)
                             }
                             _ => {
@@ -308,8 +312,7 @@ fn parse(input: &str) -> (String, Vec<String>, Option<Mode>, Option<Mode>) {
     (cmd, args, stdout, stderr)
 }
 
-fn search(paths: &[&str], cmd: &str) -> Result<Option<PathBuf>>
-{
+fn search(paths: &[&str], cmd: &str) -> Result<Option<PathBuf>> {
     for path in paths {
         if !fs::exists(path).unwrap() {
             continue;
