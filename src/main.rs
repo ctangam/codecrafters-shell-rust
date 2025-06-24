@@ -5,7 +5,7 @@ use std::{
     fmt::Display,
     fs::{self, read_to_string, OpenOptions},
     io::Read,
-    path::PathBuf,
+    path::{self, PathBuf},
     process::{exit, Command, Stdio},
 };
 
@@ -47,9 +47,11 @@ fn main() -> Result<()> {
 
     let home = env::var("HOME")?;
 
-    let history_path = env::var("HISTFILE")?;
     let mut history = Vec::new();
-    load_history(&history_path, &mut history)?;
+    let history_path = env::var("HISTFILE").ok();
+    if let Some(path) = &history_path {
+        load_history(path, &mut history)?;
+    }
 
     loop {
         // Uncomment this block to pass the first stage
@@ -168,8 +170,10 @@ fn main() -> Result<()> {
                     }
                 }
                 "exit" => {
-                    append_history(&history_path, &mut history)?;
-                    let code = args.first().map_or(Ok(0), |s| s.parse())?;
+                    if let Some(path) = &history_path {
+                        append_history(path, &mut history)?;
+                    }
+                    let code = args.first().map_or(0, |s| s.parse().ok().unwrap_or_default());
                     exit(code)
                 }
                 cmd => {
