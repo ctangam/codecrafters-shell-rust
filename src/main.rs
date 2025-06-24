@@ -51,8 +51,10 @@ fn main() -> Result<()> {
             let (cmd, mut args, stdout, stderr) = parse(input);
             match &cmd[..] {
                 "history" => {
+                    let n = args.first().map_or(Ok(history.len()), |s| s.parse())?;
                     history
                         .iter()
+                        .take(n)
                         .enumerate()
                         .for_each(|(i, s)| print!("    {}  {}", i + 1, s));
                 }
@@ -224,7 +226,7 @@ fn parse(input: &str) -> (String, Vec<String>, Option<Mode>, Option<Mode>) {
                 i += 1;
                 continue;
             }
-            '2' if input[i + 1] == '>' => {
+            '2' if input.get(i + 1) == Some(&'>') => {
                 if input[i + 2] == '>' {
                     i += 4;
                     while i < input.len() {
