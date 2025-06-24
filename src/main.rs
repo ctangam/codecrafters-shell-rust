@@ -10,6 +10,7 @@ use std::{
 };
 
 use anyhow::Result;
+use rustyline::DefaultEditor;
 
 enum Symbol {
     Single(String),
@@ -38,6 +39,7 @@ impl Display for State {
 }
 
 fn main() -> Result<()> {
+    let mut rl = DefaultEditor::new()?;
     let paths = env::var("PATH")?;
     let paths: Vec<&str> = if let "windows" = env::consts::OS {
         paths.split(';').collect()
