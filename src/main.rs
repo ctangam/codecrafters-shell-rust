@@ -98,12 +98,13 @@ fn main() -> Result<()> {
                         }
                         None => Stdio::inherit(),
                     };
-                    let child = Command::new(cmd)
+                    let mut child = Command::new(cmd)
                         .arg(arg)
                         .stdin(stdin)
                         .stdout(stdout)
                         .stderr(stderr)
                         .spawn()?;
+                    prev_stdout = child.stdout.take();
                     children.push(child);
                 }
                 "type" => {
@@ -127,7 +128,7 @@ fn main() -> Result<()> {
                     exit(code)
                 }
                 cmd => {
-                    if let Some(_path) = search(&mut paths, cmd) {
+                    // if let Some(_path) = search(&mut paths, cmd) {
                         args.retain(|s| !s.is_empty() && !s.trim().is_empty());
                         let stdin = match prev_stdout.take() {
                             Some(output) => Stdio::from(output),
@@ -171,9 +172,9 @@ fn main() -> Result<()> {
                             .spawn()?;
                         prev_stdout = child.stdout.take();
                         children.push(child);
-                    } else {
-                        println!("{}: not found", cmd);
-                    }
+                    // } else {
+                    //     println!("{}: not found", cmd);
+                    // }
                 }
             }
         }
