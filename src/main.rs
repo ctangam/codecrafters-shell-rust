@@ -38,16 +38,19 @@ impl Display for State {
 }
 
 fn main() -> Result<()> {
-    let paths = env::var("PATH").unwrap_or_default();
+    let paths = env::var("PATH")?;
     let paths: Vec<&str> = if let "windows" = env::consts::OS {
         paths.split(';').collect()
     } else {
         paths.split(':').collect()
     };
 
-    let home = env::var("HOME").unwrap_or("/".to_string());
+    let home = env::var("HOME")?;
+
+    let history_path = env::var("HISTFILE")?;
     let mut history = Vec::new();
-    // let mut history_path = None;
+    load_history(&history_path, &mut history)?;
+
     loop {
         // Uncomment this block to pass the first stage
         print!("$ ");
@@ -165,9 +168,7 @@ fn main() -> Result<()> {
                     }
                 }
                 "exit" => {
-                    // if let Some(path) = &history_path {
-                    //     save_history(path, &history)?;
-                    // }
+                    append_history(&history_path, &mut history)?;
                     let code = args.first().map_or(Ok(0), |s| s.parse())?;
                     exit(code)
                 }
