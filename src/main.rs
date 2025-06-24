@@ -3,7 +3,7 @@ use std::io::{self, Write};
 use std::{
     env,
     fs::{self, OpenOptions},
-    path::Path,
+    path::{Path, PathBuf},
     process::{exit, Command, Stdio},
 };
 
@@ -29,6 +29,7 @@ fn main() -> Result<()> {
         } else {
             paths.split(':')
         };
+        
         let home = env::var("HOME").unwrap_or("/".to_string());
 
         // Uncomment this block to pass the first stage
@@ -114,8 +115,8 @@ fn main() -> Result<()> {
                                 println!("{} is a shell builtin", cmd)
                             }
                             _ => {
-                                if let Some(path) = search(&mut paths, cmd) {
-                                    println!("{} is {}", cmd, path);
+                                if let Ok(Some(path)) = search(&mut paths, cmd) {
+                                    println!("{} is {}", cmd, path.display());
                                 } else {
                                     println!("{}: not found", cmd);
                                 }
@@ -128,7 +129,7 @@ fn main() -> Result<()> {
                     exit(code)
                 }
                 cmd => {
-                    if let Some(_path) = search(&mut paths, cmd) {
+                    if let Ok(Some(_path)) = search(&mut paths, cmd) {
                         args.retain(|s| !s.is_empty() && !s.trim().is_empty());
                         let stdin = match prev_stdout.take() {
                             Some(output) => Stdio::from(output),
@@ -307,7 +308,7 @@ fn parse(input: &str) -> (String, Vec<String>, Option<Mode>, Option<Mode>) {
     (cmd, args, stdout, stderr)
 }
 
-fn search<T>(paths: T, cmd: &str) -> Option<String>
+fn search<T>(paths: T, cmd: &str) -> Result<Option<PathBuf>>
 where
     T: IntoIterator,
     T::Item: AsRef<Path> + std::fmt::Debug,
@@ -316,12 +317,12 @@ where
         if !fs::exists(&path).unwrap() {
             continue;
         }
-        for entry in fs::read_dir(&path).unwrap() {
-            let entry = entry.unwrap();
+        for entry in fs::read_dir(&path)? {
+            let entry = entry?;
             if entry.file_name() == cmd {
-                return Some(entry.path().to_string_lossy().into_owned());
+                return Ok(Some(entry.path()));
             }
         }
     }
-    None
+    Ok(None)
 }
