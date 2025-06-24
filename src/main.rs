@@ -32,7 +32,7 @@ fn main() -> Result<()> {
 
     let home = env::var("HOME").unwrap_or("/".to_string());
     let mut history = Vec::new();
-    let mut history_path = None;
+    // let mut history_path = None;
     loop {
         // Uncomment this block to pass the first stage
         print!("$ ");
@@ -56,9 +56,14 @@ fn main() -> Result<()> {
                     if args.first() == Some(&"-r".to_string()) {
                         if let Some(path) = args.last() {
                             load_history(path, &mut history)?;
-                            history_path = Some(path.clone());
+                            // history_path = Some(path.clone());
                         }
-
+                        continue;
+                    } else if args.first() == Some(&"-w".to_string()) {
+                        if let Some(path) = args.last() {
+                            save_history(path, &history)?;
+                            // history_path = Some(path.clone());
+                        }
                         continue;
                     }
                     let n = args.first().map_or(Ok(history.len()), |s| s.parse())?;
@@ -141,9 +146,9 @@ fn main() -> Result<()> {
                     }
                 }
                 "exit" => {
-                    if let Some(path) = &history_path {
-                        save_history(path, &history)?;
-                    }
+                    // if let Some(path) = &history_path {
+                    //     save_history(path, &history)?;
+                    // }
                     let code = args.first().map_or(Ok(0), |s| s.parse())?;
                     exit(code)
                 }
