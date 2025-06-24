@@ -1,16 +1,18 @@
 #[allow(unused_imports)]
 use std::io::{self, Write};
 use std::{
-    env,
-    fmt::Display,
-    fs::{self, read_to_string, OpenOptions},
-    io::Read,
-    path::{self, PathBuf},
-    process::{exit, Command, Stdio},
+    borrow::Cow, collections::HashSet, env, fmt::Display, fs::{self, read_to_string, OpenOptions}, io::Read, path::{self, PathBuf}, process::{exit, Command, Stdio}
 };
-
+use std::borrow::Cow::{Borrowed, Owned};
 use anyhow::Result;
-use rustyline::{config::Configurer, Cmd, DefaultEditor, KeyCode, KeyEvent};
+use rustyline::{hint::HistoryHinter, history::DefaultHistory, Context, Hinter};
+use rustyline::{
+    hint::{Hint, Hinter},
+    Cmd, ConditionalEventHandler, DefaultEditor, Editor, Event, EventContext, EventHandler,
+    KeyEvent, RepeatCount,
+};
+use rustyline::{Completer, Helper, Highlighter, Validator};
+use rustyline::highlight::Highlighter;
 
 enum Symbol {
     Single(String),
@@ -38,17 +40,85 @@ impl Display for State {
     }
 }
 
-fn main() -> Result<()> {
-    let mut rl = DefaultEditor::new()?;
+#[derive(Completer, Helper, Hinter, Validator)]
+struct MyHelper(#[rustyline(Hinter)] HistoryHinter);
 
-    let paths = env::var("PATH")?;
+impl Highlighter for MyHelper {
+    fn highlight_prompt<'b, 's: 'b, 'p: 'b>(
+        &'s self,
+        prompt: &'p str,
+        default: bool,
+    ) -> Cow<'b, str> {
+        if default {
+            Owned(format!("\x1b[1;32m{prompt}\x1b[m"))
+        } else {
+            Borrowed(prompt)
+        }
+    }
+
+    fn highlight_hint<'h>(&self, hint: &'h str) -> Cow<'h, str> {
+        Owned(format!("\x1b[1m{hint}\x1b[m"))
+    }
+}
+
+#[derive(Clone)]
+struct CompleteHintHandler;
+impl ConditionalEventHandler for CompleteHintHandler {
+    fn handle(&self, evt: &Event, _: RepeatCount, _: bool, ctx: &EventContext) -> Option<Cmd> {
+        if !ctx.has_hint() {
+            return None; // default
+        }
+        if let Some(k) = evt.get(0) {
+            #[allow(clippy::if_same_then_else)]
+            if *k == KeyEvent::from('\t') {
+                Some(Cmd::CompleteHint)
+            } else if *k == KeyEvent::alt('f') && ctx.line().len() == ctx.pos() {
+                let text = ctx.hint_text()?;
+                let mut start = 0;
+                if let Some(first) = text.chars().next() {
+                    if !first.is_alphanumeric() {
+                        start = text.find(|c: char| c.is_alphanumeric()).unwrap_or_default();
+                    }
+                }
+
+                let text = text
+                    .chars()
+                    .enumerate()
+                    .take_while(|(i, c)| *i <= start || c.is_alphanumeric())
+                    .map(|(_, c)| c)
+                    .collect::<String>();
+
+                Some(Cmd::Insert(1, text))
+            } else {
+                None
+            }
+        } else {
+            unreachable!()
+        }
+    }
+}
+
+
+fn main() -> Result<()> {
+    let mut rl = Editor::<MyHelper, DefaultHistory>::new()?;
+    rl.set_helper(Some(MyHelper(HistoryHinter::new())));
+
+    let ceh = Box::new(CompleteHintHandler);
+    rl.bind_sequence(KeyEvent::from('\t'), EventHandler::Conditional(ceh.clone()));
+    rl.bind_sequence(KeyEvent::alt('f'), EventHandler::Conditional(ceh));
+    rl.bind_sequence(
+        Event::KeySeq(vec![KeyEvent::ctrl('X'), KeyEvent::ctrl('E')]),
+        EventHandler::Simple(Cmd::Suspend), // TODO external editor
+    );
+
+    let paths = env::var("PATH").unwrap_or_default();
     let paths: Vec<&str> = if let "windows" = env::consts::OS {
         paths.split(';').collect()
     } else {
         paths.split(':').collect()
     };
 
-    let home = env::var("HOME")?;
+    let home = env::var("HOME").unwrap_or_default();
 
     let mut history = Vec::new();
     let history_path = env::var("HISTFILE").ok();
@@ -171,7 +241,9 @@ fn main() -> Result<()> {
                     if let Some(path) = &history_path {
                         append_history(path, &mut history)?;
                     }
-                    let code = args.first().map_or(0, |s| s.parse().ok().unwrap_or_default());
+                    let code = args
+                        .first()
+                        .map_or(0, |s| s.parse().ok().unwrap_or_default());
                     exit(code)
                 }
                 cmd => {
