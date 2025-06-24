@@ -10,7 +10,7 @@ use std::{
 };
 
 use anyhow::Result;
-use rustyline::DefaultEditor;
+use rustyline::{config::Configurer, Cmd, DefaultEditor, KeyCode, KeyEvent};
 
 enum Symbol {
     Single(String),
@@ -40,6 +40,7 @@ impl Display for State {
 
 fn main() -> Result<()> {
     let mut rl = DefaultEditor::new()?;
+
     let paths = env::var("PATH")?;
     let paths: Vec<&str> = if let "windows" = env::consts::OS {
         paths.split(';').collect()
@@ -56,14 +57,9 @@ fn main() -> Result<()> {
     }
 
     loop {
-        // Uncomment this block to pass the first stage
-        print!("$ ");
-        io::stdout().flush()?;
-
-        // Wait for user input
-        let mut input = String::new();
-        io::stdin().read_line(&mut input)?;
-        let input = input.trim();
+        let readline = rl.readline("$ ")?;
+        rl.add_history_entry(readline.as_str())?;
+        let input = readline.trim();
         if input.is_empty() {
             continue;
         }
