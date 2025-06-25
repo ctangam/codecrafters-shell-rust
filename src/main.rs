@@ -90,7 +90,8 @@ impl ConditionalEventHandler for CompleteHintHandler {
                 } else if ctx.line().starts_with("exi") {
                     Some(Cmd::Insert(1, "t ".to_string()))
                 } else if let Ok(Some(s)) = search(&paths, ctx.line()) {
-                    Some(Cmd::Insert(1, s.display().to_string()))
+                    let s = s.file_name().unwrap().to_str().unwrap().strip_prefix(ctx.line()).unwrap();
+                    Some(Cmd::Insert(1, s.to_string()))
                 } else {
                     None
                 }
