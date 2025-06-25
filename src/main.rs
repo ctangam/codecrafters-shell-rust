@@ -72,9 +72,9 @@ impl ConditionalEventHandler for CompleteHintHandler {
             #[allow(clippy::if_same_then_else)]
             if *k == KeyEvent::from('\t') {
                 if ctx.line().starts_with("ech") {
-                    Some(Cmd::Insert(1, "o".to_string()))
+                    Some(Cmd::Insert(1, "o ".to_string()))
                 } else if ctx.line().starts_with("exi") {
-                    Some(Cmd::Insert(1, "t".to_string()))
+                    Some(Cmd::Insert(1, "t ".to_string()))
                 } else {
                     None
                 }
