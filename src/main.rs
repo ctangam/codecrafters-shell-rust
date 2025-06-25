@@ -91,7 +91,7 @@ impl ConditionalEventHandler for CompleteHintHandler {
                     Some(Cmd::Insert(1, "t ".to_string()))
                 } else if let Ok(Some(s)) = search(&paths, ctx.line()) {
                     let s = s.file_name().unwrap().to_str().unwrap().strip_prefix(ctx.line()).unwrap();
-                    Some(Cmd::Insert(1, s.to_string()))
+                    Some(Cmd::Insert(1, format!("{s} ")))
                 } else {
                     None
                 }
