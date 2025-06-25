@@ -468,7 +468,7 @@ fn search(paths: &[&str], cmd: &str) -> Result<Option<PathBuf>> {
         }
         for entry in fs::read_dir(path)? {
             let entry = entry?;
-            if entry.file_name() == cmd {
+            if entry.file_name().display().to_string().starts_with(cmd) {
                 return Ok(Some(entry.path()));
             }
         }
