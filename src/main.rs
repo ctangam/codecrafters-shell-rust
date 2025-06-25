@@ -1,10 +1,5 @@
-#[allow(unused_imports)]
-use std::io::{self, Write};
-use std::{
-    borrow::Cow, collections::HashSet, env, fmt::Display, fs::{self, read_to_string, OpenOptions}, io::Read, path::{self, PathBuf}, process::{exit, Command, Stdio}
-};
-use std::borrow::Cow::{Borrowed, Owned};
 use anyhow::Result;
+use rustyline::highlight::Highlighter;
 use rustyline::{hint::HistoryHinter, history::DefaultHistory, Context, Hinter};
 use rustyline::{
     hint::{Hint, Hinter},
@@ -12,7 +7,19 @@ use rustyline::{
     KeyEvent, RepeatCount,
 };
 use rustyline::{Completer, Helper, Highlighter, Validator};
-use rustyline::highlight::Highlighter;
+use std::borrow::Cow::{Borrowed, Owned};
+#[allow(unused_imports)]
+use std::io::{self, Write};
+use std::{
+    borrow::Cow,
+    collections::HashSet,
+    env,
+    fmt::Display,
+    fs::{self, read_to_string, OpenOptions},
+    io::Read,
+    path::{self, PathBuf},
+    process::{exit, Command, Stdio},
+};
 
 enum Symbol {
     Single(String),
@@ -68,6 +75,13 @@ impl ConditionalEventHandler for CompleteHintHandler {
         // if !ctx.has_hint() {
         //     return None; // default
         // }
+        let paths = env::var("PATH").unwrap_or_default();
+        let mut paths: Vec<&str> = if let "windows" = env::consts::OS {
+            paths.split(';').collect()
+        } else {
+            paths.split(':').collect()
+        };
+        paths.push("/usr/bin");
         if let Some(k) = evt.get(0) {
             #[allow(clippy::if_same_then_else)]
             if *k == KeyEvent::from('\t') {
@@ -75,10 +89,11 @@ impl ConditionalEventHandler for CompleteHintHandler {
                     Some(Cmd::Insert(1, "o ".to_string()))
                 } else if ctx.line().starts_with("exi") {
                     Some(Cmd::Insert(1, "t ".to_string()))
+                } else if let Ok(Some(s)) = search(&paths, ctx.line()) {
+                    Some(Cmd::Insert(1, s.display().to_string()))
                 } else {
                     None
                 }
-                
             } else {
                 None
             }
@@ -88,7 +103,6 @@ impl ConditionalEventHandler for CompleteHintHandler {
     }
 }
 
-
 fn main() -> Result<()> {
     let mut rl = Editor::<MyHelper, DefaultHistory>::new()?;
     rl.set_helper(Some(MyHelper(HistoryHinter::new())));
@@ -97,7 +111,7 @@ fn main() -> Result<()> {
     rl.bind_sequence(KeyEvent::from('\t'), EventHandler::Conditional(ceh));
 
     let paths = env::var("PATH").unwrap_or_default();
-    let paths: Vec<&str> = if let "windows" = env::consts::OS {
+    let mut paths: Vec<&str> = if let "windows" = env::consts::OS {
         paths.split(';').collect()
     } else {
         paths.split(':').collect()
