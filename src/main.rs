@@ -65,30 +65,20 @@ impl Highlighter for MyHelper {
 struct CompleteHintHandler;
 impl ConditionalEventHandler for CompleteHintHandler {
     fn handle(&self, evt: &Event, _: RepeatCount, _: bool, ctx: &EventContext) -> Option<Cmd> {
-        if !ctx.has_hint() {
-            return None; // default
-        }
+        // if !ctx.has_hint() {
+        //     return None; // default
+        // }
         if let Some(k) = evt.get(0) {
             #[allow(clippy::if_same_then_else)]
             if *k == KeyEvent::from('\t') {
-                Some(Cmd::CompleteHint)
-            } else if *k == KeyEvent::alt('f') && ctx.line().len() == ctx.pos() {
-                let text = ctx.hint_text()?;
-                let mut start = 0;
-                if let Some(first) = text.chars().next() {
-                    if !first.is_alphanumeric() {
-                        start = text.find(|c: char| c.is_alphanumeric()).unwrap_or_default();
-                    }
+                if ctx.line().starts_with("ech") {
+                    Some(Cmd::Insert(1, "o".to_string()))
+                } else if ctx.line().starts_with("exi") {
+                    Some(Cmd::Insert(1, "t".to_string()))
+                } else {
+                    None
                 }
-
-                let text = text
-                    .chars()
-                    .enumerate()
-                    .take_while(|(i, c)| *i <= start || c.is_alphanumeric())
-                    .map(|(_, c)| c)
-                    .collect::<String>();
-
-                Some(Cmd::Insert(1, text))
+                
             } else {
                 None
             }
@@ -104,12 +94,7 @@ fn main() -> Result<()> {
     rl.set_helper(Some(MyHelper(HistoryHinter::new())));
 
     let ceh = Box::new(CompleteHintHandler);
-    rl.bind_sequence(KeyEvent::from('\t'), EventHandler::Conditional(ceh.clone()));
-    rl.bind_sequence(KeyEvent::alt('f'), EventHandler::Conditional(ceh));
-    rl.bind_sequence(
-        Event::KeySeq(vec![KeyEvent::ctrl('X'), KeyEvent::ctrl('E')]),
-        EventHandler::Simple(Cmd::Suspend), // TODO external editor
-    );
+    rl.bind_sequence(KeyEvent::from('\t'), EventHandler::Conditional(ceh));
 
     let paths = env::var("PATH").unwrap_or_default();
     let paths: Vec<&str> = if let "windows" = env::consts::OS {
