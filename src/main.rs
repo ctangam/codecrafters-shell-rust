@@ -89,7 +89,7 @@ impl ConditionalEventHandler for CompleteHintHandler {
                     Some(Cmd::Insert(1, "o ".to_string()))
                 } else if ctx.line().starts_with("exi") {
                     Some(Cmd::Insert(1, "t ".to_string()))
-                } else if let Ok(Some(s)) = search(&paths, ctx.line()) {
+                } else if let Ok(Some(s)) = fuzzy_search(&paths, ctx.line()) {
                     let s = s.file_name().unwrap().to_str().unwrap().strip_prefix(ctx.line()).unwrap();
                     Some(Cmd::Insert(1, format!("{s} ")))
                 } else {
@@ -463,6 +463,22 @@ fn parse(input: &str) -> (String, Vec<String>, Option<Mode>, Option<Mode>) {
 }
 
 fn search(paths: &[&str], cmd: &str) -> Result<Option<PathBuf>> {
+    for path in paths {
+        if !fs::exists(path).unwrap() {
+            continue;
+        }
+        for entry in fs::read_dir(path)? {
+            let entry = entry?;
+            if entry.file_name() == cmd {
+                return Ok(Some(entry.path()));
+            }
+        }
+    }
+    Ok(None)
+}
+
+
+fn fuzzy_search(paths: &[&str], cmd: &str) -> Result<Option<PathBuf>> {
     for path in paths {
         if !fs::exists(path).unwrap() {
             continue;
