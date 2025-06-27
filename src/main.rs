@@ -93,13 +93,13 @@ impl ConditionalEventHandler for CompleteHintHandler {
                         let s = &candidates[0];
                         Some(Cmd::Insert(1, format!("{s} ")))
                     } else if candidates.len() > 1 {
-                        if let Some(k) = evt.get(1) {
+                        // if let Some(k) = evt.get(1) {
                             let mut s = candidates.join(" ");
                             s.push('\n');
                             Some(Cmd::Insert(1, s))
-                        } else {
-                            Some(Cmd::Newline)
-                        }
+                        // } else {
+                        //     Some(Cmd::Newline)
+                        // }
                     } else {
                         None
                     }
