@@ -84,20 +84,29 @@ impl ConditionalEventHandler for CompleteHintHandler {
         paths.push("/usr/bin");
         if let Some(k) = evt.get(0) {
             #[allow(clippy::if_same_then_else)]
-            if *k == KeyEvent::from('\t') {
                 if ctx.line().starts_with("ech") {
                     Some(Cmd::Insert(1, "o ".to_string()))
                 } else if ctx.line().starts_with("exi") {
                     Some(Cmd::Insert(1, "t ".to_string()))
-                } else if let Ok(Some(s)) = fuzzy_search(&paths, ctx.line()) {
-                    let s = s.file_name().unwrap().to_str().unwrap().strip_prefix(ctx.line()).unwrap();
-                    Some(Cmd::Insert(1, format!("{s} ")))
+                } else if let Ok(candidates) = fuzzy_search(&paths, ctx.line()) {
+                    if candidates.len() == 1 {
+                        let s = &candidates[0];
+                        Some(Cmd::Insert(1, format!("{s} ")))
+                    } else if candidates.len() > 1 {
+                        if let Some(k) = evt.get(1) {
+                            let mut s = candidates.join(" ");
+                            s.push('\n');
+                            Some(Cmd::Insert(1, s))
+                        } else {
+                            Some(Cmd::Newline)
+                        }
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }
-            } else {
-                None
-            }
+
         } else {
             unreachable!()
         }
@@ -478,17 +487,19 @@ fn search(paths: &[&str], cmd: &str) -> Result<Option<PathBuf>> {
 }
 
 
-fn fuzzy_search(paths: &[&str], cmd: &str) -> Result<Option<PathBuf>> {
+fn fuzzy_search(paths: &[&str], cmd: &str) -> Result<Vec<String>> {
+    let mut candidates = Vec::new();
     for path in paths {
         if !fs::exists(path).unwrap() {
             continue;
         }
         for entry in fs::read_dir(path)? {
             let entry = entry?;
-            if entry.file_name().display().to_string().starts_with(cmd) {
-                return Ok(Some(entry.path()));
+            let filename = entry.file_name().display().to_string();
+            if filename.starts_with(cmd) {
+                candidates.push(filename);
             }
         }
     }
-    Ok(None)
+    Ok(candidates)
 }
