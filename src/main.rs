@@ -20,6 +20,8 @@ use std::{
     path::{self, PathBuf},
     process::{exit, Command, Stdio},
 };
+use std::cell::RefCell;
+use std::time::Instant;
 
 enum Symbol {
     Single(String),
@@ -68,13 +70,14 @@ impl Highlighter for MyHelper {
     }
 }
 
+thread_local! {
+    static LAST_TAB_STATE: RefCell<(Option<Instant>, Vec<String>)> = RefCell::new((None, Vec::new()));
+}
+
 #[derive(Clone)]
 struct CompleteHintHandler;
 impl ConditionalEventHandler for CompleteHintHandler {
     fn handle(&self, evt: &Event, _: RepeatCount, _: bool, ctx: &EventContext) -> Option<Cmd> {
-        // if !ctx.has_hint() {
-        //     return None; // default
-        // }
         let paths = env::var("PATH").unwrap_or_default();
         let mut paths: Vec<&str> = if let "windows" = env::consts::OS {
             paths.split(';').collect()
@@ -82,36 +85,39 @@ impl ConditionalEventHandler for CompleteHintHandler {
             paths.split(':').collect()
         };
         paths.push("/usr/bin");
-        if let Some(k) = evt.get(0) {
-            #[allow(clippy::if_same_then_else)]
-                if ctx.line().starts_with("ech") {
-                    Some(Cmd::Insert(1, "o ".to_string()))
-                } else if ctx.line().starts_with("exi") {
-                    Some(Cmd::Insert(1, "t ".to_string()))
-                } else if let Ok(mut candidates) = fuzzy_search(&paths, ctx.line()) {
-                    if candidates.len() == 1 {
-                        let s = &candidates[0].strip_prefix(ctx.line()).unwrap();
-                        Some(Cmd::Insert(1, format!("{s} ")))
-                    } else if candidates.len() > 1 {
-                        if let Some(k) = evt.get(1) {
-                            candidates.sort();
-                            let mut s = candidates.join(" ");
-                            s.push('\n');
-                            let s = s.strip_prefix(ctx.line()).unwrap();
-                            Some(Cmd::Insert(1, s.to_string()))
-                        } else {
-                            Some(Cmd::Newline)
-                        }
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
 
-        } else {
-            unreachable!()
+        if let Some(k) = evt.get(0) {
+            if *k == KeyEvent::from('\t') {
+                let line = ctx.line();
+                if let Ok(mut candidates) = fuzzy_search(&paths, line) {
+                    return LAST_TAB_STATE.with(|state| {
+                        let mut state = state.borrow_mut();
+                        if candidates.len() > 1 {
+                            if let Some(last_time) = state.0 {
+                                if last_time.elapsed().as_secs_f32() < 1.0 {
+                                    // Second TAB press: print all candidates
+                                    candidates.sort();
+                                    let output = candidates.join("  ");
+                                    state.0 = None; // Reset state
+                                    state.1.clear();
+                                    return Some(Cmd::Insert(1, format!("\n{}\n$ ", output)));
+                                }
+                            }
+                            // First TAB press: ring a bell
+                            state.0 = Some(Instant::now());
+                            state.1 = candidates;
+                            return Some(Cmd::Insert(1, "\x07".to_string()));
+                        } else if candidates.len() == 1 {
+                            // Single match: auto-complete
+                            let s = &candidates[0].strip_prefix(line).unwrap();
+                            return Some(Cmd::Insert(1, format!("{} ", s)));
+                        }
+                        None
+                    });
+                }
+            }
         }
+        None
     }
 }
 
