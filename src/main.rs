@@ -88,12 +88,13 @@ impl ConditionalEventHandler for CompleteHintHandler {
                     Some(Cmd::Insert(1, "o ".to_string()))
                 } else if ctx.line().starts_with("exi") {
                     Some(Cmd::Insert(1, "t ".to_string()))
-                } else if let Ok(candidates) = fuzzy_search(&paths, ctx.line()) {
+                } else if let Ok(mut candidates) = fuzzy_search(&paths, ctx.line()) {
                     if candidates.len() == 1 {
                         let s = &candidates[0].strip_prefix(ctx.line()).unwrap();
                         Some(Cmd::Insert(1, format!("{s} ")))
                     } else if candidates.len() > 1 {
                         // if let Some(k) = evt.get(1) {
+                            candidates.sort();
                             let mut s = candidates.join(" ");
                             s.push('\n');
                             let s = s.strip_prefix(ctx.line()).unwrap();
