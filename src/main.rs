@@ -89,8 +89,12 @@ impl ConditionalEventHandler for CompleteHintHandler {
                     Some(Cmd::Insert(1, "o ".to_string()))
                 } else if ctx.line().starts_with("exi") {
                     Some(Cmd::Insert(1, "t ".to_string()))
-                } else if let Ok(Some(s)) = fuzzy_search(&paths, ctx.line()) {
-                    let s = s.file_name().unwrap().to_str().unwrap().strip_prefix(ctx.line()).unwrap();
+                } else if let Ok(candidates) = fuzzy_search(&paths, ctx.line()) {
+                    let s = if candidates.len() == 1 {
+                        candidates[0].replace(ctx.line(), "")
+                    } else {
+                        format!("")
+                    };
                     Some(Cmd::Insert(1, format!("{s} ")))
                 } else {
                     None
@@ -478,7 +482,8 @@ fn search(paths: &[&str], cmd: &str) -> Result<Option<PathBuf>> {
 }
 
 
-fn fuzzy_search(paths: &[&str], cmd: &str) -> Result<Option<PathBuf>> {
+fn fuzzy_search(paths: &[&str], cmd: &str) -> Result<Vec<String>> {
+    let mut candidates = Vec::new();
     for path in paths {
         if !fs::exists(path).unwrap() {
             continue;
@@ -486,9 +491,9 @@ fn fuzzy_search(paths: &[&str], cmd: &str) -> Result<Option<PathBuf>> {
         for entry in fs::read_dir(path)? {
             let entry = entry?;
             if entry.file_name().display().to_string().starts_with(cmd) {
-                return Ok(Some(entry.path()));
+                candidates.push(entry.file_name().display().to_string())
             }
         }
     }
-    Ok(None)
+    Ok(candidates)
 }
